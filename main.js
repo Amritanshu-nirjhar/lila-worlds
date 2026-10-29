@@ -144,13 +144,7 @@ function blip(hz = 1760) {
 $('.snd').addEventListener('click', () => setSound(!soundOn));
 $$('.nav a, .slot, .ind-item').forEach(a => a.addEventListener('pointerenter', () => blip(2200)));
 
-/* ---------- entry gate + hype track ---------- */
-function gate() {
-  return new Promise(res => $$('[data-enter]').forEach(b => b.addEventListener('click', () => {
-    gsap.to('.gate', { opacity: 0, y: -12, duration: .35, ease: 'power2.in', onComplete: () => $('.gate')?.remove() });
-    res(b.dataset.enter === 'on');
-  }, { once: true })));
-}
+/* ---------- hype track ---------- */
 // Synthesized in the browser (no licensed audio). 8-beat build whose drop lands on the loader's
 // diamond lock at 3.32s, zaps on the two glitch hits, then a 16-beat groove that fades out.
 function hype(ctx) {
@@ -217,20 +211,14 @@ function hype(ctx) {
   return D + 16 * B - ctx.currentTime;
 }
 
-/* ---------- voice login: say "Initialize Lila" ----------
+/* ---------- voice entry: first screen, say "Initialize Lila" (not shown on screen) ----------
    Uses the browser's speech recognition (Chrome, Edge, Safari; Chrome sends the audio to Google to transcribe).
-   Front-end unlock only: with no server, anyone with dev tools can set the flag, so never put anything
-   sensitive behind it. Real protection needs a backend that checks the voice and issues a session. */
+   Front-end only, so it's a show piece, not access control. */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 // recognisers spell the name many ways, so accept the common ones
 const PHRASE = /\b(initiali[sz]e|initiali[sz]ed|initiali[sz]ing)\b[\s,.'-]*(lila|leela|lilah|lela|leila|layla|lyla|lilla|lila's|leelah)\b/i;
-const vBox = $('#vauth'), vWave = $('#vauth-wave'), vHeard = $('#vauth-heard'), vStatus = $('#vauth-status'), vault = $('#vault');
-let vRec = null, vStream = null, vCtx = null, vAnalyser = null, vRaf = 0, vDone = false, vGrant = 0, vReturnFocus = null;
-const loggedIn = () => store.get('lila-voice') === '1';
-function renderAuth() {
-  document.body.classList.toggle('authed', loggedIn());
-  $('#vbtn-t').textContent = loggedIn() ? 'Studio Vault' : 'Voice login';
-}
+const vBox = $('#vauth'), vWave = $('#vauth-wave'), vHeard = $('#vauth-heard'), vStatus = $('#vauth-status');
+let vRec = null, vStream = null, vCtx = null, vAnalyser = null, vRaf = 0, vDone = false, vGrant = 0, vEnter = null;
 function setStatus(text, kind = '') { vStatus.textContent = text; vStatus.className = 'vauth-status ' + kind; }
 function chime(ok) {
   const c = actx || (vCtx && vCtx.state !== 'closed' ? vCtx : null);
@@ -293,11 +281,6 @@ function drawWave() {
     vRaf = requestAnimationFrame(loop);
   })();
 }
-// light each word of the phrase as the recogniser picks it up
-const INIT_WORD = /\binitiali[sz](e|ed|ing)?\b/i, NAME_WORD = /\b(lila|leela|lilah|lela|leila|layla|lyla|lilla|lila's|leelah)\b/i;
-function lightWords(text) {
-  $$('.vw').forEach(w => w.classList.toggle('on', (w.dataset.w === 'init' ? INIT_WORD : NAME_WORD).test(text)));
-}
 function listen() {
   vRec = new SR();
   Object.assign(vRec, { lang: 'en-US', continuous: true, interimResults: true, maxAlternatives: 3 });
@@ -306,14 +289,13 @@ function listen() {
       const r = e.results[i], alts = [...r].map(a => a.transcript.trim());
       vHeard.textContent = `“${alts[0]}”`;
       vHeard.classList.toggle('live', !r.isFinal);
-      lightWords(alts.join(' '));
       if (alts.some(t => PHRASE.test(t))) return grant();
       if (r.isFinal) deny();
     }
   };
   vRec.onerror = e => {
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setStatus('Microphone blocked. Allow it from the icon in the address bar, then try again.', 'err');
-    else if (e.error === 'network') setStatus('Voice login needs an internet connection to recognise speech.', 'err');
+    else if (e.error === 'network') setStatus('Voice entry needs an internet connection to recognise speech.', 'err');
   };
   // recognition stops after silence; keep it alive while the screen is open
   vRec.onend = () => { if (!vDone && !vBox.hidden && !vStatus.classList.contains('err')) try { vRec.start(); } catch {} };
@@ -321,35 +303,37 @@ function listen() {
   setStatus('Listening…');
 }
 function deny() {
-  setTimeout(() => { if (!vDone) lightWords(''); }, 900);
-  setStatus('That wasn’t the phrase. Try again: “Initialize Lila”.', 'warn');
+  setStatus('Not quite. Try again.', 'warn');
   gsap.fromTo('.vauth-t', { x: -14 }, { x: 0, duration: .5, ease: 'elastic.out(1, .3)' });
   chime(false);
 }
 function grant() {
   if (vDone) return;
-  $$('.vw').forEach(w => w.classList.add('on'));
   vDone = true; vGrant = 0;
   try { vRec.stop(); } catch {}
-  store.set('lila-voice', '1');
+  // start audio now: browsers allow it without a click only while the mic is live
+  setSound(true);
   setStatus('', 'ok'); scramble(vStatus, 'ACCESS GRANTED', .6);
   vBox.classList.add('granted');
   chime(true);
-  setTimeout(() => { closeVoice(); renderAuth(); setTimeout(openVault, 650); }, 1500);
+  setTimeout(closeVoice, 1500);
+}
+// resolves once the phrase is heard; there is no other way in
+function voiceEntry() {
+  const p = new Promise(res => { vEnter = res; });
+  openVoice();
+  return p;
 }
 async function openVoice() {
-  vReturnFocus = document.activeElement; vDone = false; vGrant = 0;
-  vHeard.innerHTML = '&nbsp;'; vBox.classList.remove('granted', 'speaking'); lightWords('');
-  vBox.hidden = false; lenis.stop();
-  gsap.fromTo(vBox, { clipPath: 'inset(50% 0% 50% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: .7, ease: 'expo.inOut' });
-  $('#vauth-x').focus();
   drawWave();
-  if (!SR) return setStatus('Voice login needs Chrome, Edge or Safari. This browser has no speech recognition.', 'err');
+  if (!SR) return setStatus('Voice entry needs Chrome, Edge or Safari. This browser has no speech recognition.', 'err');
   setStatus('Starting microphone…');
   try { vStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
   catch { return setStatus('Microphone blocked. Allow it from the icon in the address bar, then try again.', 'err'); }
   if (vBox.hidden) return stopMic();
   vCtx = new AudioContext();
+  // no click has happened yet on first load, so the visualiser's context may start suspended
+  if (vCtx.state === 'suspended') addEventListener('pointerdown', () => vCtx?.resume(), { once: true });
   vAnalyser = vCtx.createAnalyser(); vAnalyser.fftSize = 256; vAnalyser.smoothingTimeConstant = .6;
   vCtx.createMediaStreamSource(vStream).connect(vAnalyser);
   listen();
@@ -363,24 +347,8 @@ function stopMic() {
 }
 function closeVoice() {
   stopMic();
-  gsap.to(vBox, { clipPath: 'inset(50% 0% 50% 0%)', duration: .55, ease: 'expo.in', onComplete: () => { vBox.hidden = true; cancelAnimationFrame(vRaf); lenis.start(); vReturnFocus?.focus?.(); } });
+  gsap.to(vBox, { clipPath: 'inset(50% 0% 50% 0%)', duration: .55, ease: 'expo.in', onComplete: () => { vBox.hidden = true; cancelAnimationFrame(vRaf); vEnter?.(); } });
 }
-function openVault() {
-  vault.hidden = false;
-  gsap.fromTo(vault, { xPercent: 100 }, { xPercent: 0, duration: .8, ease: 'expo.out' });
-  gsap.fromTo('.vault-list li', { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: .7, stagger: .08, delay: .2, ease: 'expo.out' });
-  $('#vault-close').focus();
-}
-function closeVault() { gsap.to(vault, { xPercent: 100, duration: .5, ease: 'expo.in', onComplete: () => { vault.hidden = true; } }); }
-$('#vbtn').addEventListener('click', () => (loggedIn() ? openVault() : openVoice()));
-$('#vauth-x').addEventListener('click', closeVoice);
-$('#vault-close').addEventListener('click', closeVault);
-$('#vault-out').addEventListener('click', () => { store.set('lila-voice', '0'); renderAuth(); closeVault(); blip(660); });
-addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  if (!vBox.hidden) closeVoice(); else if (!vault.hidden) closeVault();
-});
-renderAuth();
 
 /* ---------- menu ---------- */
 $('.burger').addEventListener('click', () => {
@@ -640,7 +608,7 @@ async function initGL() {
 
   // drag to rotate
   let drag = null;
-  addEventListener('pointerdown', e => { if (e.target.closest('a,button,input,.news,.svc,.menu,.vauth,.vault,pre') || e.pointerType === 'touch') return; drag = { x: e.clientX, y: e.clientY }; });
+  addEventListener('pointerdown', e => { if (e.target.closest('a,button,input,.news,.svc,.menu,.vauth,pre') || e.pointerType === 'touch') return; drag = { x: e.clientX, y: e.clientY }; });
   addEventListener('pointermove', e => {
     if (!drag) return;
     const dx = (e.clientX - drag.x) * .008, dy = (e.clientY - drag.y) * .008; drag = { x: e.clientX, y: e.clientY };
@@ -744,14 +712,11 @@ const ptr = { x: 0, y: 0 }, ptrT = { x: 0, y: 0 };
 addEventListener('pointermove', e => { ptrT.x = e.clientX / innerWidth * 2 - 1; ptrT.y = e.clientY / innerHeight * 2 - 1; });
 
 const glReady = initGL().catch(err => { console.error('WebGL failed', err); return null; });
-// the entry click is the user gesture browsers require before any audio can play
-const withSound = await gate();
-if (withSound) {
-  setSound(true);
-  master.gain.cancelScheduledValues(0); master.gain.setValueAtTime(0, actx.currentTime);
-  const len = hype(actx);
-  master.gain.setTargetAtTime(.05, actx.currentTime + len - 1.5, 1); // ambient drone takes over as the track fades
-} else store.set('lila-sound', 'off');
+// grant() starts audio while the mic is live, which browsers accept in place of a click
+await voiceEntry();
+master.gain.cancelScheduledValues(0); master.gain.setValueAtTime(0, actx.currentTime);
+const len = hype(actx);
+master.gain.setTargetAtTime(.05, actx.currentTime + len - 1.5, 1); // ambient drone takes over as the track fades
 await loaderIn();
 const GL = await glReady;
 await loaderOut();
