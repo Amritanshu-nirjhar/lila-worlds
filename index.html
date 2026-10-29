@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lila Worlds</title>
+<meta name="description" content="Lila Worlds is a Bengaluru studio building playable worlds, live in-game shows and VR for Fortnite (UEFN), Roblox and Meta Quest.">
+<meta property="og:title" content="Lila Worlds">
+<meta property="og:description" content="We build worlds people come back to.">
+<meta name="theme-color" content="#050507">
+<link rel="canonical" href="https://lila.example/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Cpath fill='%23FF8A1F' fill-rule='evenodd' d='M12 0 24 15 12 30 0 15Zm0 9-5 6 5 6 5-6Z'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;700;800;900&family=Geist+Mono:wght@400;500&family=Noto+Sans+JP:wght@500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Organization","name":"Lila Worlds","url":"https://lila.example/","address":{"@type":"PostalAddress","addressLocality":"Bengaluru","addressCountry":"IN"}}
+</script>
+</head>
+<body data-tone="dark">
+
+<!-- Loader: construction lines draw the mark, then collapse -->
+<div id="loader">
+  <svg id="loader-svg" aria-hidden="true"></svg>
+  <div class="gate">
+    <p class="gate-k">Lila Worlds · Bengaluru · 2026</p>
+    <button type="button" class="gate-btn" data-enter="on" autofocus><span>Enter with sound</span><i aria-hidden="true">↗</i></button>
+    <button type="button" class="gate-link" data-enter="off">Enter without sound</button>
+    <p class="gate-k">Best with headphones</p>
+  </div>
+  <div class="scan"></div><div class="scan"></div><div class="scan"></div>
+  <p class="ld-tag" data-text="We build worlds people come back to.">&nbsp;</p>
+  <div class="ld-foot"><span>Loading worlds</span><span class="ld-num">000</span></div>
+  <div class="ld-bar"><i></i></div>
+</div>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="fx-grid" aria-hidden="true"></div>
+<div class="fx-dia" aria-hidden="true"></div>
+
+<header class="hdr">
+  <a class="logo" href="#top" data-go="kv" aria-label="Lila Worlds, back to top">
+    <svg viewBox="0 0 24 30" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M12 0 24 15 12 30 0 15Zm0 9-5 6 5 6 5-6Z"/></svg>
+    <span>LILA</span>
+  </a>
+  <nav class="nav" aria-label="Main">
+    <a href="#top" data-go="kv">News</a>
+    <a href="#works" data-go="intro">Works</a>
+    <a href="#about" data-go="mission">About</a>
+    <a href="#kit" data-go="kit">Lila Kit</a>
+  </nav>
+  <div class="hdr-r">
+    <button class="vbtn" type="button" id="vbtn" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z M5 11a7 7 0 0 0 14 0 M12 18v3"/></svg>
+      <span id="vbtn-t">Voice login</span>
+    </button>
+    <a class="slot" href="#contact" data-go="footer"><span class="slot-in"><span>Contact / Careers</span><span aria-hidden="true">Contact / Careers</span></span></a>
+    <button class="snd" type="button" aria-label="Sound" aria-pressed="false"><i></i><i></i><i></i></button>
+    <button class="burger" type="button" aria-label="Open menu" aria-expanded="false"><i></i><i></i></button>
+  </div>
+</header>
+
+<!-- Voice login: say "Initialize Lila" -->
+<div class="vauth" id="vauth" role="dialog" aria-modal="true" aria-labelledby="vauth-t" hidden>
+  <canvas class="vauth-wave" id="vauth-wave" aria-hidden="true"></canvas>
+  <div class="vauth-in">
+    <p class="vauth-k">Voice access · Lila Worlds</p>
+    <h2 class="vauth-t" id="vauth-t">Say <em><span class="vw" data-w="init">“Initialize</span> <span class="vw" data-w="lila">Lila”</span></em></h2>
+    <p class="vauth-mic" aria-hidden="true"><i></i><span class="vm-idle">Listening</span><span class="vm-on">Hearing you</span></p>
+    <p class="vauth-heard" id="vauth-heard" aria-live="polite">&nbsp;</p>
+    <p class="vauth-status" id="vauth-status" role="status">Starting microphone…</p>
+    <button type="button" class="vauth-x" id="vauth-x">Cancel</button>
+  </div>
+</div>
+
+<aside class="vault" id="vault" aria-labelledby="vault-t" hidden>
+  <div class="vault-head">
+    <p class="vauth-k">Signed in by voice</p>
+    <button type="button" class="vault-close" id="vault-close" aria-label="Close vault">✕</button>
+  </div>
+  <h2 class="vault-t" id="vault-t">Studio Vault</h2>
+  <p class="vault-sub">Work in production. Not public yet.</p>
+  <ul class="vault-list">
+    <li><span class="mono">UEFN · Q1 2027</span><b>Monsoon Run: Season 2</b><p>Flood-tide ranked mode with a 64-player bracket.</p></li>
+    <li><span class="mono">Roblox · Greybox</span><b>Chai Stall Tycoon</b><p>Economy prototype in weekly playtests.</p></li>
+    <li><span class="mono">Live show · Pitch</span><b>Monsoon Sessions</b><p>Three-night in-game concert series, artist TBC.</p></li>
+  </ul>
+  <button type="button" class="pill vault-out" id="vault-out">Log out</button>
+</aside>
+
+<div class="menu" aria-hidden="true">
+  <nav aria-label="Menu">
+    <a href="#top" data-go="kv">Top</a>
+    <a href="#top" data-go="kv">News</a>
+    <a href="#works" data-go="intro">Works</a>
+    <a href="#about" data-go="mission">About</a>
+    <a href="#kit" data-go="kit">Lila Kit</a>
+    <a href="#contact" data-go="footer">Contact / Careers</a>
+  </nav>
+  <p class="menu-foot">Indiranagar, Bengaluru · hello@lila.example</p>
+</div>
+
+<aside class="hud" aria-hidden="true">
+  <div class="hud-row"><span>Emblem Quaternion</span><span class="hud-dot"></span></div>
+  <div class="hud-q"><b id="q0">.00</b><b id="q1">.00</b><b id="q2">.00</b><b id="q3">1.0</b></div>
+  <svg class="gizmo" viewBox="-40 -40 80 80">
+    <circle r="34" class="gz-ring"/><ellipse rx="34" ry="10" class="gz-ring" id="gz-eq"/>
+    <line id="gx" class="gz-x"/><line id="gy" class="gz-y"/><line id="gz" class="gz-z"/>
+    <g id="gxl"><circle r="6" class="gz-xf"/><text>X</text></g>
+    <g id="gyl"><circle r="6" class="gz-yf"/><text>Y</text></g>
+    <g id="gzl"><circle r="6" class="gz-zf"/><text>Z</text></g>
+  </svg>
+  <button type="button" class="hud-reset" id="reset">Reset rotation</button>
+  <p class="hud-hint">Drag anywhere to rotate</p>
+</aside>
+
+<nav class="ind" aria-label="Page sections"></nav>
+
+
+<main>
+  <section class="sec" data-s="kv" id="top" style="height:200vh">
+    <div class="stage">
+      <h1 class="sr">Lila Worlds, a playable worlds studio in Bengaluru</h1>
+      <div class="kv-left" data-reveal>
+        <p class="mono dim">Playable worlds studio / Bengaluru</p>
+        <p class="kv-tag">We build worlds<br>people come back to.</p>
+      </div>
+      <p class="kv-scroll mono">scroll to explore →</p>
+      <div class="news" data-reveal>
+        <h2 class="mono news-t">News</h2>
+        <ul>
+          <li><time class="mono">2026 10.12</time><p>Monsoon Run passes 18 million plays</p></li>
+          <li><time class="mono">2026 09.03</time><p>We're hiring two Verse engineers in Bengaluru</p></li>
+          <li><time class="mono">2026 07.21</time><p>Bass &amp; Brass Live recap: 420K players at peak</p></li>
+          <li><time class="mono">2026 05.08</time><p>Stepwell is out now on Meta Quest</p></li>
+          <li><time class="mono">2026 02.14</time><p>We moved to a bigger studio in Indiranagar</p></li>
+          <li><time class="mono">2025 11.02</time><p>Dabba Dash launches on Roblox</p></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-s="intro" id="works" style="height:220vh">
+    <div class="stage">
+      <div class="reel-wrap" aria-hidden="true">
+        <video class="reel" src="media/reel.mp4" muted loop playsinline preload="auto" data-auto></video>
+      </div>
+      <svg class="reel-edge" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M50 0 100 50 50 100 0 50Z" vector-effect="non-scaling-stroke"/></svg>
+      <div class="intro-t">
+        <p class="mono dim" data-scramble>Selected work 2024–2026</p>
+        <h2 class="outline big">Worlds</h2>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-s="works" style="height:480vh" aria-label="Works">
+    <div class="stage">
+      <div class="w-info" aria-live="polite">
+        <div class="w-meta"><time class="mono" id="w-date"></time><span class="chip" id="w-chip"></span></div>
+        <h3 class="w-title" id="w-title"></h3>
+        <p class="w-sub" id="w-sub" lang="ja"></p>
+        <ul class="w-tags" id="w-tags"></ul>
+      </div>
+      <div class="w-count mono"><span><span id="w-i">01</span> / <span id="w-n">06</span></span><i class="w-prog"><b id="w-bar"></b></i></div>
+    </div>
+  </section>
+
+  <section class="sec" data-s="wout" style="height:160vh">
+    <div class="stage">
+      <p class="wout-cap mono" data-scramble>38 worlds shipped · 214M plays · 420K peak players</p>
+    </div>
+  </section>
+
+  <section class="sec" data-s="mission" id="about" style="height:200vh">
+    <div class="stage">
+      <div class="mv mv-l">
+        <p class="hl-wrap"><span class="hl" lang="ja" tabindex="0" data-en="Not just something to watch,">ただ見るだけではなく、</span><br><span class="hl" lang="ja" tabindex="0" data-en="but something you want to play.">思わず遊びたくなる</span><br><span class="hl" lang="ja" tabindex="0" data-en="That's the entertainment we create.">エンターテインメントをつくる</span></p>
+        <p class="hl-hint mono dim">Hover a line for English</p>
+        <p class="mv-en">Create entertainment<br>people play in, not just watch.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-s="vision" style="height:200vh">
+    <div class="stage">
+      <h2 class="outline mid vis-t">Vision</h2>
+      <div class="mv mv-r">
+        <p class="hl-wrap"><span class="hl" lang="ja" tabindex="0" data-en="Worlds you'll want to return to">何度でも帰りたくなる</span><br><span class="hl" lang="ja" tabindex="0" data-en="again and again, that's what we build.">「世界」をつくる</span></p>
+        <p class="hl-hint mono dim">Hover a line for English</p>
+      </div>
+      <p class="mv-en mv-en-l">Build worlds<br>people keep coming back to.</p>
+    </div>
+  </section>
+
+  <section class="sec" data-s="service" style="height:320vh">
+    <div class="stage">
+      <div class="svc-head"><h2 class="outline mid">Service</h2><p class="mono dim" data-scramble>Three ways we build</p></div>
+      <div class="svc-track">
+        <article class="svc">
+          <video class="svc-vid" src="media/w0.mp4" muted loop playsinline preload="metadata" data-auto aria-hidden="true"></video>
+          <svg class="svc-ic" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 56 19v26L32 58 8 45V19Z M8 19l24 13 24-13 M32 32v26"/></svg>
+          <h3>Fortnite Creative (UEFN)</h3>
+          <p>Original islands and brand worlds built in Unreal Editor for Fortnite, written in Verse, tuned for discovery and replay.</p>
+          <p class="mono dim">Islands · Verse · Live ops</p>
+        </article>
+        <article class="svc">
+          <video class="svc-vid" src="media/w1.mp4" muted loop playsinline preload="metadata" data-auto aria-hidden="true"></video>
+          <svg class="svc-ic" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 14h44v36H10Z M10 26h44 M22 14v36 M42 26v24"/></svg>
+          <h3>Roblox experiences</h3>
+          <p>Tycoons, social hangouts and seasonal events with economies that keep players coming back after the launch spike.</p>
+          <p class="mono dim">Luau · Economy design · Events</p>
+        </article>
+        <article class="svc">
+          <video class="svc-vid" src="media/w2.mp4" muted loop playsinline preload="metadata" data-auto aria-hidden="true"></video>
+          <svg class="svc-ic" viewBox="0 0 64 64" aria-hidden="true"><path d="M6 24h52v20H40l-8-8-8 8H6Z M18 34h0 M46 34h0"/></svg>
+          <h3>Unreal Engine &amp; VR</h3>
+          <p>Standalone Meta Quest experiences and cloud-rendered Unreal worlds, held at 72 fps on device.</p>
+          <p class="mono dim">Quest · Pixel streaming · Unreal 5</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-s="kit" id="kit" style="height:180vh">
+    <div class="stage">
+      <div class="kit">
+        <i class="kx kx1"></i><i class="kx kx2"></i><i class="kx kx3"></i><i class="kx kx4"></i>
+        <i class="kr kr-t"></i><i class="kr kr-r"></i><i class="kr kr-b"></i><i class="kr kr-l"></i>
+        <div class="kit-in">
+          <p class="mono dim" data-scramble>Our own platform</p>
+          <h2 class="kit-t">Lila Kit</h2>
+          <p>Open-source Verse modules we use on every UEFN project: checkpoints, crowd-safe spawns and a show timeline that keeps 100K+ players in sync during live events.</p>
+          <pre class="mono"><span class="acc">using</span> { /LilaKit/ShowTimeline }
+
+show := show_timeline{ BPM := 128.0 }
+show.At(Bar := 16, DropConfetti)
+show.At(Bar := 32, LiftStage)</pre>
+          <p class="mono dim">Public release · early 2027</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-s="outro" style="height:170vh">
+    <div class="stage">
+      <svg id="outro-svg" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+      <div class="outro-t"><p class="outro-w">LILA WORLDS</p><p class="mono dim">We build worlds people come back to.</p></div>
+    </div>
+  </section>
+</main>
+
+<footer class="ftr" id="contact">
+  <div class="ftr-top">
+    <div class="ftr-links">
+      <div class="ftr-col"><a href="#top" data-go="kv">Top</a><a href="#top" data-go="kv">News</a><a href="#works" data-go="intro">Works</a></div>
+      <div class="ftr-col"><a href="#about" data-go="mission">About</a><a href="#kit" data-go="kit">Lila Kit</a><a href="404.html">404 page</a></div>
+      <div class="ftr-col"><p class="mono dim">Studio</p><p>12th Main Road, Indiranagar<br>Bengaluru 560038, India</p><p class="mono dim">Studio time <span id="clock">--:--</span> IST</p></div>
+    </div>
+    <div class="ftr-cta">
+      <a class="big-btn" href="mailto:hello@lila.example"><span>Contact</span><span class="mono dim">hello@lila.example</span><i>↗</i></a>
+      <a class="big-btn" href="mailto:careers@lila.example"><span>Careers</span><span class="mono dim">careers@lila.example</span><i>↗</i></a>
+    </div>
+  </div>
+  <div class="ftr-bot"><span>©2026 Lila Worlds Pvt. Ltd.</span><span class="mono">12.9716° N, 77.6412° E</span></div>
+</footer>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

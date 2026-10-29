@@ -1,0 +1,180 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Lila clip generator</title>
+<!-- Renders the looping work clips + showreel frame by frame. Driven by tools/render-clips.cjs; open in a browser to preview. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@800;900&family=Geist+Mono:wght@500&display=swap">
+<style>body{margin:0;background:#000}canvas{display:block;max-width:100%}</style>
+<canvas id="c" width="960" height="560"></canvas>
+<script>
+const LOOP = 6, BPM = 120, TAU = Math.PI * 2;
+const CLIPS = [
+  { title: 'MONSOON RUN', label: 'BUILT IN UEFN', c: ['#06323B', '#0E6E7A', '#FFB347'], kind: 'rain' },
+  { title: 'DABBA DASH', label: 'ON ROBLOX', c: ['#121C3A', '#3550A8', '#8FD3FF'], kind: 'rail' },
+  { title: 'STEPWELL', label: 'META QUEST', c: ['#1E170C', '#7A5A24', '#F2CF7A'], kind: 'steps' },
+  { title: 'BASS & BRASS', label: 'LIVE IN FORTNITE', c: ['#160F3A', '#5131B8', '#FF6F8E'], kind: 'eq' },
+  { title: 'GULLY CRICKET', label: 'BUILT IN UEFN', c: ['#0C2A16', '#2C7A43', '#F2E06B'], kind: 'ball' },
+  { title: 'NIGHT MARKET', label: 'ON ROBLOX', c: ['#2A1206', '#9A3B12', '#FF9F43'], kind: 'lanterns' },
+];
+const rng = seed => () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const rgba = (h, a) => `rgba(${parseInt(h.slice(1, 3), 16)},${parseInt(h.slice(3, 5), 16)},${parseInt(h.slice(5, 7), 16)},${a})`;
+const fr = v => v - Math.floor(v);
+// every periodic motion uses a whole number of cycles per LOOP, so frame 0 == frame LOOP*fps
+const cyc = (t, n) => fr(t / LOOP * n);
+
+function diamond(x, cx, cy, a, b) { x.beginPath(); x.moveTo(cx, cy - b); x.lineTo(cx + a, cy); x.lineTo(cx, cy + b); x.lineTo(cx - a, cy); x.closePath(); }
+
+function layer(k, t, x, w, h, r) {
+  const [c0, c1, c2] = k.c;
+  switch (k.kind) {
+    case 'rain': {
+      x.strokeStyle = 'rgba(200,240,255,.35)'; x.lineWidth = 1.2;
+      for (let i = 0; i < 260; i++) { const px = r() * w * 1.3, ph = r(), y = cyc(t, 3 + (i % 3)) * h * 1.4 + ph * h * 1.4; const yy = y % (h * 1.4) - h * .2; x.beginPath(); x.moveTo(px - yy * .25, yy); x.lineTo(px - yy * .25 - 8, yy + 34); x.stroke(); }
+      const lvl = h * (.72 - .1 * Math.sin(TAU * cyc(t, 1)));
+      for (let l = 0; l < 3; l++) {
+        x.beginPath(); x.moveTo(0, h);
+        for (let px = 0; px <= w; px += 12) x.lineTo(px, lvl + l * 18 + Math.sin(px / 60 + TAU * cyc(t, 2 + l)) * 10);
+        x.lineTo(w, h); x.closePath(); x.fillStyle = rgba(c2, .14 + l * .06); x.fill();
+      }
+      break;
+    }
+    case 'rail': {
+      const vx = w * .62, vy = h * .46;
+      x.strokeStyle = rgba(c2, .7); x.lineWidth = 2;
+      [-1, 1].forEach(s => { x.beginPath(); x.moveTo(vx, vy); x.lineTo(vx + s * w * .9, h * 1.1); x.stroke(); });
+      for (let i = 0; i < 18; i++) { const z = fr(i / 18 + cyc(t, 6)), e = z * z, y = vy + (h * 1.1 - vy) * e, hw = w * .9 * e; x.globalAlpha = z; x.beginPath(); x.moveTo(vx - hw, y); x.lineTo(vx + hw, y); x.stroke(); }
+      x.globalAlpha = 1;
+      for (let i = 0; i < 7; i++) { const px = fr(i / 7 + cyc(t, 2)) * (w + 300) - 150, py = h * (.18 + (i % 3) * .1); x.fillStyle = rgba(i % 2 ? c2 : '#ffffff', .85); x.fillRect(px, py, 70, 44); x.fillStyle = rgba(c0, .8); x.fillRect(px + 8, py + 8, 54, 6); }
+      break;
+    }
+    case 'steps': {
+      const cx = w * .66, cy = h * .62;
+      for (let i = 0; i < 14; i++) {
+        const s = fr(i / 14 + cyc(t, 2)), size = Math.pow(s, 1.8) * w * 1.4;
+        x.strokeStyle = rgba(c2, .25 + s * .6); x.lineWidth = 1 + s * 5;
+        x.strokeRect(cx - size / 2, cy - size / 2 + s * 60, size, size);
+        x.fillStyle = rgba(c0, .22 * (1 - s)); x.fillRect(cx - size / 2, cy - size / 2 + s * 60, size, size);
+      }
+      break;
+    }
+    case 'eq': {
+      const n = 56, bw = w / n;
+      for (let i = 0; i < n; i++) {
+        const v = .15 + .85 * Math.abs(Math.sin(i * .55 + TAU * cyc(t, 4))) * (.5 + .5 * Math.abs(Math.sin(i * .21 - TAU * cyc(t, 3)))) * (1 - .45 * beat(t));
+        const bh = v * h * .62;
+        const g = x.createLinearGradient(0, h, 0, h - bh); g.addColorStop(0, rgba(c2, .9)); g.addColorStop(1, rgba('#ffffff', .9));
+        x.fillStyle = g; x.fillRect(i * bw + 2, h - bh, bw - 4, bh);
+      }
+      const strobe = Math.pow(1 - beat(t), 10);
+      x.fillStyle = rgba(c2, strobe * .35); x.fillRect(0, 0, w, h);
+      break;
+    }
+    case 'ball': {
+      x.strokeStyle = 'rgba(255,255,255,.7)'; x.lineWidth = 4;
+      for (let s = 0; s < 3; s++) { x.beginPath(); x.moveTo(w * .78 + s * 22, h * .5); x.lineTo(w * .78 + s * 22, h * .86); x.stroke(); }
+      const p = cyc(t, 4), bx = -40 + p * (w * .82), by = h * .82 - Math.sin(p * Math.PI) * h * .55;
+      for (let k2 = 14; k2 >= 0; k2--) { const q = Math.max(0, p - k2 * .012), tx = -40 + q * (w * .82), ty = h * .82 - Math.sin(q * Math.PI) * h * .55; x.fillStyle = rgba(c2, .55 * (1 - k2 / 14)); x.beginPath(); x.arc(tx, ty, 14 - k2 * .6, 0, TAU); x.fill(); }
+      x.fillStyle = '#ffffff'; x.beginPath(); x.arc(bx, by, 15, 0, TAU); x.fill();
+      x.font = '500 22px "Geist Mono", monospace'; x.fillStyle = 'rgba(255,255,255,.85)'; x.fillText(`${(118 + Math.round(30 * Math.sin(p * Math.PI)))} KM/H`, bx + 26, by - 18);
+      break;
+    }
+    case 'lanterns': {
+      for (let i = 0; i < 46; i++) {
+        const px = r() * w, sp = 1 + (i % 3), y = h * 1.15 - cyc(t, sp) * h * 1.35 - r() * h * 1.35, yy = ((y % (h * 1.35)) + h * 1.35) % (h * 1.35) - h * .15, rad = 6 + r() * 16;
+        const g = x.createRadialGradient(px, yy, 0, px, yy, rad * 3); g.addColorStop(0, rgba(c2, .9)); g.addColorStop(.3, rgba(c2, .35)); g.addColorStop(1, rgba(c2, 0));
+        x.fillStyle = g; x.beginPath(); x.arc(px, yy, rad * 3, 0, TAU); x.fill();
+      }
+      break;
+    }
+  }
+}
+const beat = t => fr(t * BPM / 60);
+
+function scene(k, t, x, w, h, id) {
+  const r = rng(id * 7919 + 1);
+  const [c0, c1, c2] = k.c;
+  // background
+  const a = TAU * cyc(t, 1) * .05;
+  const g = x.createLinearGradient(w / 2 - Math.cos(a) * w, h / 2 - Math.sin(a) * h, w / 2 + Math.cos(a) * w, h / 2 + Math.sin(a) * h);
+  g.addColorStop(0, c0); g.addColorStop(1, c1); x.fillStyle = g; x.fillRect(0, 0, w, h);
+  // diamond tunnel rushing at camera
+  const cx = w * .62 + Math.sin(TAU * cyc(t, 1)) * 30, cy = h * .45 + Math.cos(TAU * cyc(t, 1)) * 18;
+  for (let i = 0; i < 16; i++) {
+    const s = fr(i / 16 + cyc(t, 3)), e = Math.pow(s, 2.4), A = e * w * 1.2, B = e * w * 1.55;
+    x.strokeStyle = rgba(c2, (1 - s) * .55 + .08); x.lineWidth = 1 + e * 9;
+    diamond(x, cx, cy, A, B); x.stroke();
+  }
+  const glow = x.createRadialGradient(cx, cy, 0, cx, cy, w * .5); glow.addColorStop(0, rgba(c2, .5)); glow.addColorStop(1, rgba(c2, 0));
+  x.fillStyle = glow; x.fillRect(0, 0, w, h);
+  layer(k, t, x, w, h, rng(id * 131 + 7));
+  // speed lines
+  x.lineWidth = 1;
+  for (let i = 0; i < 70; i++) { const y = r() * h, len = 60 + r() * 260, sp = 2 + (i % 4), px = cyc(t, sp) * (w + len) * 1 + r() * (w + len); const xx = (px % (w + len)) - len; x.strokeStyle = `rgba(255,255,255,${.08 + r() * .25})`; x.beginPath(); x.moveTo(xx, y); x.lineTo(xx + len, y); x.stroke(); }
+  // beat flash
+  x.fillStyle = `rgba(255,255,255,${Math.pow(1 - beat(t), 8) * .22})`; x.fillRect(0, 0, w, h);
+  // kinetic title: slams in every 2 beats, letters jitter
+  const b2 = fr(t * BPM / 120), slam = 1 + Math.pow(1 - b2, 5) * .35;
+  const fs = Math.min(h * .2, w * .13);
+  x.save(); x.translate(w * .06, h * .84); x.scale(slam, slam); x.transform(1, 0, -.12 * Math.pow(1 - b2, 3), 1, 0, 0);
+  x.font = `900 ${fs}px Geist, sans-serif`; x.textBaseline = 'alphabetic';
+  const words = k.title.split(' '), lines = words.length > 1 ? [words[0], words.slice(1).join(' ')] : [k.title];
+  lines.forEach((ln, li) => {
+    const y = -(lines.length - 1 - li) * fs * .92;
+    let px = 0;
+    [...ln].forEach((ch, ci) => {
+      const jr = rng(id * 1000 + ci * 31 + li * 7 + Math.floor(t * BPM / 30));
+      const jy = (jr() - .5) * 10 * Math.pow(1 - b2, 2), cw = x.measureText(ch).width;
+      x.fillStyle = 'rgba(255,60,90,.8)'; x.fillText(ch, px - 4, y + jy);
+      x.fillStyle = 'rgba(60,220,255,.8)'; x.fillText(ch, px + 4, y + jy);
+      x.fillStyle = '#ffffff'; x.fillText(ch, px, y + jy);
+      px += cw;
+    });
+  });
+  x.restore();
+  // glitch slices: 8 bursts per loop
+  const gp = cyc(t, 8);
+  if (gp < .09) {
+    const gr = rng(id * 999 + Math.floor(t / LOOP * 8) * 13 + Math.floor(gp * 100));
+    for (let i = 0; i < 9; i++) { const y = gr() * h, hh = 6 + gr() * 50, dx = (gr() - .5) * 140; x.drawImage(x.canvas, 0, y, w, hh, dx, y, w, hh); }
+    x.fillStyle = rgba(c2, .25); x.fillRect(0, gr() * h, w, 3);
+  }
+  // HUD
+  x.font = '500 15px "Geist Mono", monospace'; x.fillStyle = 'rgba(255,255,255,.9)';
+  x.fillText(k.label, 34, 44); x.fillRect(34, 54, 46, 2);
+  const f = Math.floor(t * 30) % 30, sec = Math.floor(t);
+  x.textAlign = 'right'; x.fillText(`00:0${sec}:${String(f).padStart(2, '0')}`, w - 34, 44);
+  x.fillStyle = beat(t) < .5 ? '#FF3B4E' : 'rgba(255,59,78,.25)'; x.beginPath(); x.arc(w - 160, 39, 5, 0, TAU); x.fill();
+  x.textAlign = 'left';
+  x.strokeStyle = 'rgba(255,255,255,.7)'; x.lineWidth = 1.5;
+  [[20, 20, 1, 1], [w - 20, 20, -1, 1], [w - 20, h - 20, -1, -1], [20, h - 20, 1, -1]].forEach(([px, py, sx, sy]) => { x.beginPath(); x.moveTo(px, py + sy * 22); x.lineTo(px, py); x.lineTo(px + sx * 22, py); x.stroke(); });
+  // scanlines + vignette
+  x.fillStyle = 'rgba(0,0,0,.12)'; for (let y = 0; y < h; y += 3) x.fillRect(0, y, w, 1);
+  const v = x.createRadialGradient(w / 2, h / 2, h * .35, w / 2, h / 2, w * .75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)');
+  x.fillStyle = v; x.fillRect(0, 0, w, h);
+}
+
+// showreel: hard cuts every half second across all clips, with flash/invert/slice hits on each cut
+function reel(t, x, w, h) {
+  const seg = Math.floor(t * 2), id = seg % CLIPS.length, cp = fr(t * 2);
+  scene(CLIPS[id], t, x, w, h, id);
+  if (cp < .12) {
+    const gr = rng(seg * 77 + 3);
+    for (let i = 0; i < 14; i++) { const y = gr() * h, hh = 4 + gr() * 70, dx = (gr() - .5) * 260; x.drawImage(x.canvas, 0, y, w, hh, dx, y, w, hh); }
+    if (cp < .05) { x.globalCompositeOperation = 'difference'; x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h); x.globalCompositeOperation = 'source-over'; }
+  }
+  x.font = '900 22px "Geist Mono", monospace'; x.fillStyle = '#FF8A1F';
+  x.fillText(`LILA WORLDS — REEL 2026 · ${String(id + 1).padStart(2, '0')}/06`, 34, h - 34);
+}
+
+window.CLIPS = CLIPS;
+window.renderFrame = (id, t) => {
+  const cv = document.getElementById('c');
+  const [w, h] = id === 'reel' ? [1280, 720] : [960, 560];
+  if (cv.width !== w) { cv.width = w; cv.height = h; }
+  const x = cv.getContext('2d');
+  x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.textAlign = 'left';
+  id === 'reel' ? reel(t, x, w, h) : scene(CLIPS[id], t, x, w, h, id);
+};
+window.ready = document.fonts.load('900 100px Geist').then(() => document.fonts.load('500 20px "Geist Mono"'));
+// preview mode when opened directly
+if (!navigator.webdriver) { const id = new URLSearchParams(location.search).get('clip') ?? 'reel'; const t0 = performance.now(); (function loop() { renderFrame(id === 'reel' ? 'reel' : +id, ((performance.now() - t0) / 1000) % LOOP); requestAnimationFrame(loop); })(); }
+</script>
